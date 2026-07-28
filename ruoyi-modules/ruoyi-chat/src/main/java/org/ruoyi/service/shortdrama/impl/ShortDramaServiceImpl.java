@@ -1864,10 +1864,20 @@ public class ShortDramaServiceImpl implements IShortDramaService {
         });
         heartbeat.scheduleAtFixedRate(() -> emit(emitter, streamPhase, "running", "模型仍在处理中，请稍候..."),
             15, 15, TimeUnit.SECONDS);
+        // 首 token 超时兜底:部分聚合站对 stream=true 既不返回内容也不报错,
+        // 外层 30 分钟总超时才会失败,前端会长时间卡死。90 秒内未收到任何 token 时快速失败。
+        final AtomicBoolean firstTokenReceived = new AtomicBoolean(false);
+        heartbeat.schedule(() -> {
+            if (firstTokenReceived.compareAndSet(false, true)) {
+                done.completeExceptionally(new RuntimeException(
+                    "模型在90秒内未返回任何流式内容，可能该模型或服务不支持流式输出，请更换模型或使用同步生成"));
+            }
+        }, 90, TimeUnit.SECONDS);
         List<ChatMessage> messages = List.of(UserMessage.from(prompt));
         streamingModel.chat(messages, new StreamingChatResponseHandler() {
             @Override
             public void onPartialResponse(String text) {
+                firstTokenReceived.set(true);
                 buf.append(text);
                 emitStream(emitter, streamPhase, text);
                 if (onPartial != null) {
