@@ -2,6 +2,8 @@ package org.ruoyi.service.retrieval.impl;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.ruoyi.common.trace.config.TraceProperties;
+import org.ruoyi.common.trace.service.TraceRecordService;
 import org.ruoyi.domain.bo.vector.QueryVectorBo;
 import org.ruoyi.domain.vo.knowledge.KnowledgeRetrievalVo;
 import org.ruoyi.factory.RerankModelFactory;
@@ -21,7 +23,8 @@ class KnowledgeRetrievalServiceRegressionTest {
     @Test
     void rrfMergesSameStableIdAndKeepsDistinctItems() throws Exception {
         KnowledgeRetrievalServiceImpl service = new KnowledgeRetrievalServiceImpl(
-            mock(VectorStoreService.class), mock(RerankModelFactory.class), mock(KnowledgeFragmentMapper.class));
+            mock(VectorStoreService.class), mock(RerankModelFactory.class), mock(KnowledgeFragmentMapper.class),
+            mock(TraceRecordService.class), new TraceProperties());
         KnowledgeRetrievalVo vectorA = item("fid-a", "A", 0.9);
         KnowledgeRetrievalVo vectorB = item("fid-b", "B", 0.8);
         KnowledgeRetrievalVo keywordA = item("fid-a", "A", 10.0);
@@ -44,7 +47,8 @@ class KnowledgeRetrievalServiceRegressionTest {
         VectorStoreService vectorStore = mock(VectorStoreService.class);
         when(vectorStore.search(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(item("fid-a", "A", 0.75)));
         KnowledgeRetrievalServiceImpl service = new KnowledgeRetrievalServiceImpl(
-            vectorStore, mock(RerankModelFactory.class), mock(KnowledgeFragmentMapper.class));
+            vectorStore, mock(RerankModelFactory.class), mock(KnowledgeFragmentMapper.class),
+            mock(TraceRecordService.class), new TraceProperties());
         QueryVectorBo query = new QueryVectorBo();
         query.setKid("1");
         query.setQuery("test");
