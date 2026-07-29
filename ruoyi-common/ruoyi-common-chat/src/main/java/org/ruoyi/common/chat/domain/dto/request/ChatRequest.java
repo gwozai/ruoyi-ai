@@ -1,6 +1,5 @@
 package org.ruoyi.common.chat.domain.dto.request;
 
-import com.alibaba.fastjson.annotation.JSONField;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import dev.langchain4j.data.message.ChatMessage;
@@ -31,7 +30,6 @@ public class ChatRequest {
      * 智能体ID。传入时后端按智能体配置解析模型/工具/技能/知识库/提示词/是否深度思考。
      */
     @JsonSerialize(using = ToStringSerializer.class)
-    @JSONField(serializeUsing = String.class)
     private Long agentId;
 
     /**
@@ -54,7 +52,6 @@ public class ChatRequest {
      * 会话id
      */
     @JsonSerialize(using = ToStringSerializer.class)
-    @JSONField(serializeUsing = String.class)
     private Long sessionId;
 
     /**
@@ -71,7 +68,6 @@ public class ChatRequest {
      * 对话id(每个聊天窗口都不一样)
      */
     @JsonSerialize(using = ToStringSerializer.class)
-    @JSONField(serializeUsing = String.class)
     private Long uuid;
 
     /**

@@ -1,6 +1,7 @@
 package me.zhyd.oauth.request;
 
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xkcoding.http.support.HttpHeader;
 import me.zhyd.oauth.cache.AuthStateCache;
 import me.zhyd.oauth.config.AuthConfig;
@@ -17,6 +18,9 @@ import me.zhyd.oauth.utils.UrlBuilder;
 
 import java.util.HashMap;
 import java.util.Map;
+
+// 临时保留FastJson用于JustAuth库兼容
+import com.alibaba.fastjson.JSON;
 
 /**
  * 新版钉钉二维码登录
@@ -52,44 +56,60 @@ public class AuthDingTalkV2Request extends AuthDefaultRequest {
 
     @Override
     public AuthToken getAccessToken(AuthCallback authCallback) {
-        Map<String, String> params = new HashMap<>();
-        params.put("grantType", "authorization_code");
-        params.put("clientId", config.getClientId());
-        params.put("clientSecret", config.getClientSecret());
-        params.put("code", authCallback.getCode());
-        String response = new HttpUtils(config.getHttpConfig()).post(this.source.accessToken(), JSONObject.toJSONString(params)).getBody();
-        JSONObject accessTokenObject = JSONObject.parseObject(response);
-        if (!accessTokenObject.containsKey("accessToken")) {
-            throw new AuthException(JSONObject.toJSONString(response), source);
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, String> params = new HashMap<>();
+            params.put("grantType", "authorization_code");
+            params.put("clientId", config.getClientId());
+            params.put("clientSecret", config.getClientSecret());
+            params.put("code", authCallback.getCode());
+
+            String paramsJson = objectMapper.writeValueAsString(params);
+            String response = new HttpUtils(config.getHttpConfig()).post(this.source.accessToken(), paramsJson).getBody();
+            JsonNode accessTokenObject = objectMapper.readTree(response);
+
+            if (!accessTokenObject.has("accessToken")) {
+                throw new AuthException(response, source);
+            }
+            return AuthToken.builder()
+                .accessToken(accessTokenObject.get("accessToken").asText())
+                .refreshToken(accessTokenObject.has("refreshToken") ? accessTokenObject.get("refreshToken").asText() : null)
+                .expireIn(accessTokenObject.has("expireIn") ? accessTokenObject.get("expireIn").asInt() : 0)
+                .corpId(accessTokenObject.has("corpId") ? accessTokenObject.get("corpId").asText() : null)
+                .build();
+        } catch (Exception e) {
+            throw new AuthException("获取AccessToken失败: " + e.getMessage(), source);
         }
-        return AuthToken.builder()
-            .accessToken(accessTokenObject.getString("accessToken"))
-            .refreshToken(accessTokenObject.getString("refreshToken"))
-            .expireIn(accessTokenObject.getIntValue("expireIn"))
-            .corpId(accessTokenObject.getString("corpId"))
-            .build();
     }
 
     @Override
     public AuthUser getUserInfo(AuthToken authToken) {
-        HttpHeader header = new HttpHeader();
-        header.add("x-acs-dingtalk-access-token", authToken.getAccessToken());
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            HttpHeader header = new HttpHeader();
+            header.add("x-acs-dingtalk-access-token", authToken.getAccessToken());
 
-        String response = new HttpUtils(config.getHttpConfig()).get(this.source.userInfo(), null, header, false).getBody();
-        JSONObject object = JSONObject.parseObject(response);
+            String response = new HttpUtils(config.getHttpConfig()).get(this.source.userInfo(), null, header, false).getBody();
+            JsonNode object = objectMapper.readTree(response);
 
-        authToken.setOpenId(object.getString("openId"));
-        authToken.setUnionId(object.getString("unionId"));
-        return AuthUser.builder()
-            .rawUserInfo(object)
-            .uuid(object.getString("unionId"))
-            .username(object.getString("nick"))
-            .nickname(object.getString("nick"))
-            .avatar(object.getString("avatarUrl"))
-            .snapshotUser(object.getBooleanValue("visitor"))
-            .token(authToken)
-            .source(source.toString())
-            .build();
+            // 将JsonNode转换为JSONObject以兼容JustAuth库
+            com.alibaba.fastjson.JSONObject rawUserInfo = com.alibaba.fastjson.JSON.parseObject(object.toString());
+
+            authToken.setOpenId(object.has("openId") ? object.get("openId").asText() : null);
+            authToken.setUnionId(object.has("unionId") ? object.get("unionId").asText() : null);
+            return AuthUser.builder()
+                .rawUserInfo(rawUserInfo)
+                .uuid(object.has("unionId") ? object.get("unionId").asText() : null)
+                .username(object.has("nick") ? object.get("nick").asText() : null)
+                .nickname(object.has("nick") ? object.get("nick").asText() : null)
+                .avatar(object.has("avatarUrl") ? object.get("avatarUrl").asText() : null)
+                .snapshotUser(object.has("visitor") && object.get("visitor").asBoolean())
+                .token(authToken)
+                .source(source.toString())
+                .build();
+        } catch (Exception e) {
+            throw new AuthException("获取用户信息失败: " + e.getMessage(), source);
+        }
     }
 
     /**

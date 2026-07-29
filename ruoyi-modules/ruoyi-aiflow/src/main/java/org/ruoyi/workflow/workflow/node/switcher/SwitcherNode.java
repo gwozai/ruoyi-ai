@@ -1,8 +1,7 @@
 package org.ruoyi.workflow.workflow.node.switcher;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -339,23 +338,26 @@ public class SwitcherNode extends AbstractWfNode {
             String inputConfig = workflowNode.getInputConfig();
             log.info("节点 '{}' 的输入配置: {}", nodeUuid, inputConfig);
             if (StringUtils.isNotBlank(inputConfig)){
-                // 解析输入配置为JSON对象
-                JSONObject configJson = JSON.parseObject(inputConfig);
-                // 获取 user_inputs 数组
-                JSONArray userInputs = configJson.getJSONArray("user_inputs");
-                if (userInputs != null && !userInputs.isEmpty()) {
-                    // 在 user_inputs 中查找匹配的参数名，并获取对应值
-                    Optional<String> valueOpt = userInputs.stream()
-                        .filter(JSONObject.class::isInstance)
-                        .map(JSONObject.class::cast)
-                        .filter(obj -> paramName.equals(obj.getString("name")))
-                        .map(matchedObj -> getValueFromInputs(nodeUuid, "input", inputs))
-                        .filter(Objects::nonNull)
-                        .findFirst();
-                    // 若找到匹配值，则更新结果
-                    if (valueOpt.isPresent()) {
-                        result = valueOpt.get();
+                try {
+                    // 使用Jackson解析输入配置
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode configJson = objectMapper.readTree(inputConfig);
+                    // 获取 user_inputs 数组
+                    JsonNode userInputs = configJson.get("user_inputs");
+                    if (userInputs != null && userInputs.isArray()) {
+                        // 在 user_inputs 中查找匹配的参数名，并获取对应值
+                        for (JsonNode inputNode : userInputs) {
+                            if (inputNode.has("name") && paramName.equals(inputNode.get("name").asText())) {
+                                String value = getValueFromInputs(nodeUuid, "input", inputs);
+                                if (value != null) {
+                                    result = value;
+                                    break;
+                                }
+                            }
+                        }
                     }
+                } catch (Exception e) {
+                    log.error("解析节点输入配置失败: {}", nodeUuid, e);
                 }
             }
         }
