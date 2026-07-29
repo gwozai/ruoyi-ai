@@ -150,25 +150,47 @@ public class ChatServiceFacade implements IChatService {
      * @return SseEmitter
      */
     public SseEmitter sseChat(ChatRequest chatRequest) {
-
-        // 具体的服务实现
         Long userId = LoginHelper.getUserId();
         String tokenValue = StpUtil.getTokenValue();
-        // 每个会话一个 SSE 连接，避免同用户多会话串台
-        SseEmitter emitter = sseEmitterManager.connect(String.valueOf(chatRequest.getSessionId()));
+
+        boolean workflowMode = Boolean.TRUE.equals(chatRequest.getEnableWorkFlow());
+        boolean agentMode = chatRequest.getAgentId() != null;
+        if (workflowMode && agentMode) {
+            throw new IllegalArgumentException("对话模式参数冲突：工作流和智能体不能同时启用");
+        }
+
+        // 工作流模式。工作流引擎负责创建并持有自己的 SSE，必须在普通聊天连接创建前路由。
+        if (workflowMode) {
+            chatMessageService.saveChatMessage(
+                userId,
+                chatRequest.getSessionId(),
+                chatRequest.getContent(),
+                RoleType.USER.getName(),
+                chatRequest.getModel()
+            );
+            return handleWorkflowChat(chatRequest);
+        }
 
         // 智能体解析：传入 agentId 时按智能体绑定的模型覆盖 model 字段
         AgentVo agentVo = null;
-        if (chatRequest.getAgentId() != null) {
+        if (agentMode) {
             agentVo = agentService.queryById(chatRequest.getAgentId());
+            if (agentVo == null) {
+                throw new IllegalArgumentException("智能体不存在: " + chatRequest.getAgentId());
+            }
             if (agentVo != null && agentVo.getModelId() != null) {
                 ChatModelVo agentModel = chatModelService.queryById(agentVo.getModelId());
-                if (agentModel != null) {
-                    chatRequest.setModel(agentModel.getModelName());
+                if (agentModel == null) {
+                    throw new IllegalArgumentException("智能体绑定的模型不存在: " + agentVo.getModelId());
                 }
-            } else {
-                log.warn("智能体不存在或未配置模型，回退到 model 字段: agentId={}", chatRequest.getAgentId());
+                chatRequest.setModel(agentModel.getModelName());
             }
+        }
+
+        if (StringUtils.isBlank(chatRequest.getModel())) {
+            throw new IllegalArgumentException(
+                agentVo == null ? "对话模式必须指定模型" : "智能体未绑定模型，且请求未提供回退模型"
+            );
         }
 
         // 根据模型名称查询完整配置
@@ -177,8 +199,10 @@ public class ChatServiceFacade implements IChatService {
             throw new IllegalArgumentException("模型不存在: " + chatRequest.getModel());
         }
 
+        // 对话和智能体模式共用按会话隔离的 SSE。
+        SseEmitter emitter = sseEmitterManager.connect(String.valueOf(chatRequest.getSessionId()));
+
         // 构建上下文消息列表（系统提示词 + 历史消息 + 当前用户消息）
-        // 注意：RAG 检索增强统一在 handleAgentChat 中执行一次，此处不再重复检索
         List<ChatMessage> contextMessages = buildContextMessages(chatRequest, agentVo);
 
         chatRequest.setEmitter(emitter);
@@ -190,43 +214,68 @@ public class ChatServiceFacade implements IChatService {
         // 保存用户消息
         chatMessageService.saveChatMessage(userId, chatRequest.getSessionId(), chatRequest.getContent(), RoleType.USER.getName(), chatRequest.getModel());
 
-        TraceRunHandle traceRun = Boolean.TRUE.equals(chatRequest.getEnableWorkFlow())
-            ? null : startRagTraceRun(chatRequest, userId);
-        // 3. 路由对话模式：工作流对话 / 智能体对话（两者均返回各自的 SseEmitter）
-        return handleSpecialChatModes(chatRequest, agentVo, traceRun);
-    }
+        TraceRunHandle traceRun = startRagTraceRun(chatRequest, userId);
 
-    /**
-     * 路由对话模式：仅两种情况——工作流对话 / 智能体对话。
-     *
-     * @param chatRequest 聊天请求
-     * @param agentVo    智能体配置（可为 null）
-     * @return 对应模式的 SseEmitter
-     */
-    private SseEmitter handleSpecialChatModes(ChatRequest chatRequest, AgentVo agentVo, TraceRunHandle traceRun) {
-        // 模式1：工作流对话（前端应用市场选工作流后携带 workFlowRunner）
-        if (Boolean.TRUE.equals(chatRequest.getEnableWorkFlow())) {
-            log.info("处理工作流对话,会话: {}", chatRequest.getSessionId());
-            WorkFlowRunner runner = chatRequest.getWorkFlowRunner();
-            if (ObjectUtils.isEmpty(runner)) {
-                log.warn("工作流参数为空");
-            }
-            return workFlowStarterService.streaming(
-                ThreadContext.getCurrentUser(),
-                runner.getUuid(),
-                runner.getInputs(),
-                chatRequest.getSessionId()
-            );
+        // 智能体和普通对话互斥：有 agentId 为智能体，否则为普通模型对话。
+        if (agentVo != null) {
+            log.info("处理智能体对话,会话:{},agentId:{}", chatRequest.getSessionId(), chatRequest.getAgentId());
+            return handleAgentChat(chatRequest, agentVo, traceRun);
         }
-        // 模式2：智能体对话（默认走 Supervisor 多 Agent 编排）
-        return handleAgentChat(chatRequest, agentVo, traceRun);
+        log.info("处理普通对话,会话:{},模型:{}", chatRequest.getSessionId(), chatRequest.getModel());
+        return handleModelChat(chatRequest, traceRun);
     }
 
     /**
-     * 智能体对话模式（默认）：构建 Supervisor 多 Agent 编排并异步执行，结果通过 SSE 推送。
+     * 工作流模式。工作流运行时负责 SSE、节点执行和结束事件。
+     */
+    private SseEmitter handleWorkflowChat(ChatRequest chatRequest) {
+        WorkFlowRunner runner = chatRequest.getWorkFlowRunner();
+        if (ObjectUtils.isEmpty(runner) || StringUtils.isBlank(runner.getUuid())) {
+            throw new IllegalArgumentException("工作流模式必须提供 workFlowRunner.uuid");
+        }
+        log.info("处理工作流对话,会话:{},workflowUuid:{}", chatRequest.getSessionId(), runner.getUuid());
+        return workFlowStarterService.streaming(
+            ThreadContext.getCurrentUser(),
+            runner.getUuid(),
+            runner.getInputs() == null ? List.of() : runner.getInputs(),
+            chatRequest.getSessionId()
+        );
+    }
+
+    /**
+     * 普通对话模式：直接调用选定模型，不装配 Supervisor、MCP、Skills 或专业子 Agent。
+     */
+    private SseEmitter handleModelChat(ChatRequest chatRequest, TraceRunHandle traceRun) {
+        ChatModelVo chatModelVo = chatRequest.getChatModelVo();
+        AbstractChatService chatService = chatServiceFactory.getOriginalService(chatModelVo.getProviderCode());
+        StreamingChatModel streamingChatModel = chatService.buildStreamingChatModel(chatModelVo, chatRequest);
+        List<ChatMessage> messages = buildModelChatMessages(chatRequest);
+
+        TraceStreamSpan llmSpan = null;
+        try (TraceScope ignored = openTraceScope(traceRun, chatRequest.getUserId())) {
+            llmSpan = startLlmCallSpan(traceRun, chatRequest, "handleModelChat");
+            streamingChatModel.chat(
+                messages,
+                createModelChatResponseHandler(chatRequest, traceRun, llmSpan)
+            );
+        } catch (Exception e) {
+            if (llmSpan != null) {
+                llmSpan.finishError(e);
+                llmSpan.detach();
+            }
+            finishTraceRun(traceRun, TraceConstants.STATUS_ERROR, e);
+            SseMessageUtils.sendError(String.valueOf(chatRequest.getSessionId()), e.getMessage());
+            SseMessageUtils.completeConnection(String.valueOf(chatRequest.getSessionId()));
+            log.error("普通对话执行失败", e);
+        }
+        return chatRequest.getEmitter();
+    }
+
+    /**
+     * 智能体对话模式：构建 Supervisor 多 Agent 编排并异步执行，结果通过 SSE 推送。
      *
      * @param chatRequest 聊天请求
-     * @param agentVo    智能体配置（可为 null，无智能体时用请求 model 兜底）
+     * @param agentVo    智能体配置
      */
     private SseEmitter handleAgentChat(ChatRequest chatRequest, AgentVo agentVo, TraceRunHandle traceRun) {
         ChatModelVo chatModelVo = chatRequest.getChatModelVo();
@@ -321,7 +370,7 @@ public class ChatServiceFacade implements IChatService {
         CompletableFuture.runAsync(() -> {
             TraceStreamSpan llmSpan = null;
             try (TraceScope ignored = openTraceScope(traceRun, userId)) {
-                llmSpan = startLlmCallSpan(traceRun, chatRequest);
+                llmSpan = startLlmCallSpan(traceRun, chatRequest, "handleAgentChat");
                 String result = supervisor.invoke(prompt);
                 SseMessageUtils.sendContent(sessionId, result);
                 SseMessageUtils.sendDone(sessionId);
@@ -386,7 +435,8 @@ public class ChatServiceFacade implements IChatService {
             traceRun.businessId, userId, traceRun.tenantId);
     }
 
-    private TraceStreamSpan startLlmCallSpan(TraceRunHandle traceRun, ChatRequest chatRequest) {
+    private TraceStreamSpan startLlmCallSpan(TraceRunHandle traceRun, ChatRequest chatRequest,
+                                             String methodName) {
         if (traceRun == null || StringUtils.isBlank(TraceContext.getTraceId())) {
             return null;
         }
@@ -401,7 +451,7 @@ public class ChatServiceFacade implements IChatService {
         node.setNodeName("llm-call");
         node.setNodeType(RagTraceNodeTypes.NODE_LLM_CALL);
         node.setClassName(ChatServiceFacade.class.getName());
-        node.setMethodName("handleAgentChat");
+        node.setMethodName(methodName);
         node.setStatus(TraceConstants.STATUS_RUNNING);
         node.setStartTime(new Date(startMillis));
         node.setInputPayload(RagTracePayloadBuilder.streamInputSummary(chatRequest));
@@ -564,7 +614,11 @@ public class ChatServiceFacade implements IChatService {
         Long userId = LoginHelper.getUserId();
 
         // 5. 建立 SSE 连接（用于前端监听，按会话隔离）
-        sseEmitterManager.connect(String.valueOf(chatRequest.getSessionId()));
+        // 工作流调用时(externalHandler 非空), SSE 连接由工作流引擎创建并持有(WorkflowStarter#streaming),
+        // connect 为替换语义(关闭同键旧连接), 此处重连会掐断工作流连接, 必须跳过
+        if (externalHandler == null) {
+            sseEmitterManager.connect(String.valueOf(chatRequest.getSessionId()));
+        }
 
         // 保存用户消息
         chatMessageService.saveChatMessage(userId, chatRequest.getSessionId(), chatRequest.getContent(), RoleType.USER.getName(), chatRequest.getModel());
@@ -642,6 +696,19 @@ public class ChatServiceFacade implements IChatService {
         // 2. 添加当前用户消息（放在最后；RAG 增强在 handleAgentChat 中统一执行，避免重复检索）
         messages.add(UserMessage.userMessage(chatRequest.getContent()));
 
+        return messages;
+    }
+
+    /**
+     * 构建普通对话消息。保留历史上下文，并在请求指定知识库时仅增强当前用户消息。
+     */
+    private List<ChatMessage> buildModelChatMessages(ChatRequest chatRequest) {
+        List<ChatMessage> messages = new ArrayList<>(chatRequest.getContextMessages());
+        String augmentedInput = augmentAgentInput(chatRequest, null);
+        int lastIndex = messages.size() - 1;
+        if (lastIndex >= 0 && messages.get(lastIndex) instanceof UserMessage) {
+            messages.set(lastIndex, UserMessage.userMessage(augmentedInput));
+        }
         return messages;
     }
 
@@ -792,6 +859,77 @@ public class ChatServiceFacade implements IChatService {
     }
 
     /**
+     * 普通对话响应处理器：推送流式内容、保存助手消息并结束链路追踪。
+     */
+    private StreamingChatResponseHandler createModelChatResponseHandler(ChatRequest chatRequest,
+                                                                         TraceRunHandle traceRun,
+                                                                         TraceStreamSpan llmSpan) {
+        String sessionId = String.valueOf(chatRequest.getSessionId());
+        return new StreamingChatResponseHandler() {
+
+            private final StringBuilder messageBuffer = new StringBuilder();
+
+            @Override
+            public void onPartialResponse(String partialResponse) {
+                messageBuffer.append(partialResponse);
+                SseMessageUtils.sendContent(sessionId, partialResponse);
+            }
+
+            @Override
+            public void onPartialThinking(PartialThinking partialThinking) {
+                SseMessageUtils.sendReasoning(sessionId, partialThinking.text());
+            }
+
+            @Override
+            public void onCompleteResponse(ChatResponse completeResponse) {
+                try {
+                    String fullMessage = messageBuffer.toString();
+                    if (StringUtils.isNotBlank(fullMessage)) {
+                        chatMessageService.saveChatMessage(
+                            chatRequest.getUserId(),
+                            chatRequest.getSessionId(),
+                            fullMessage,
+                            RoleType.ASSISTANT.getName(),
+                            chatRequest.getModel()
+                        );
+                    } else {
+                        log.warn("普通对话返回空消息,会话:{}", chatRequest.getSessionId());
+                    }
+                    if (llmSpan != null) {
+                        llmSpan.finishSuccess(RagTracePayloadBuilder.streamOutputSummary(fullMessage.length()));
+                    }
+                    finishTraceRun(traceRun, TraceConstants.STATUS_SUCCESS, null);
+                    SseMessageUtils.sendDone(sessionId);
+                } catch (Exception e) {
+                    if (llmSpan != null) {
+                        llmSpan.finishError(e);
+                    }
+                    finishTraceRun(traceRun, TraceConstants.STATUS_ERROR, e);
+                    SseMessageUtils.sendError(sessionId, e.getMessage());
+                    log.error("普通对话完成处理失败", e);
+                } finally {
+                    if (llmSpan != null) {
+                        llmSpan.detach();
+                    }
+                    SseMessageUtils.completeConnection(sessionId);
+                }
+            }
+
+            @Override
+            public void onError(Throwable error) {
+                if (llmSpan != null) {
+                    llmSpan.finishError(error);
+                    llmSpan.detach();
+                }
+                finishTraceRun(traceRun, TraceConstants.STATUS_ERROR, error);
+                SseMessageUtils.sendError(sessionId, error.getMessage());
+                SseMessageUtils.completeConnection(sessionId);
+                log.error("普通对话流式响应失败", error);
+            }
+        };
+    }
+
+    /**
      * 创建组合响应处理器 - 同时发送到 SSE 和外部 handler
      *
      * @param sessionId       会话ID（SSE 按会话隔离推送）
@@ -811,7 +949,10 @@ public class ChatServiceFacade implements IChatService {
                 messageBuffer.append(partialResponse);
 
                 // 2. 发送内容事件到 SSE（前端可通过 SSE 监听）
-                SseMessageUtils.sendContent(sessionId, partialResponse);
+                // 工作流调用时连接归工作流引擎所有, token 由引擎以 [NODE_CHUNK_] 事件推送, 不走聊天协议
+                if (externalHandler == null) {
+                    SseMessageUtils.sendContent(sessionId, partialResponse);
+                }
 
                 // 3. 转发给外部 handler（Workflow 等模块可处理）
                 if (externalHandler != null) {
@@ -821,8 +962,10 @@ public class ChatServiceFacade implements IChatService {
 
             @Override
             public void onPartialThinking(PartialThinking partialThinking) {
-                // 发送推理内容到 SSE（前端通过 reasoning 事件监听）
-                SseMessageUtils.sendReasoning(sessionId, partialThinking.text());
+                // 发送推理内容到 SSE（前端通过 reasoning 事件监听）, 工作流调用时不发送
+                if (externalHandler == null) {
+                    SseMessageUtils.sendReasoning(sessionId, partialThinking.text());
+                }
 
                 // 转发给外部 handler
                 if (externalHandler != null) {
@@ -833,11 +976,12 @@ public class ChatServiceFacade implements IChatService {
             @Override
             public void onCompleteResponse(ChatResponse completeResponse) {
                 try {
-                    // 1. 发送完成事件
-                    SseMessageUtils.sendDone(sessionId);
-
-                    // 2. 关闭 SSE 连接
-                    SseMessageUtils.completeConnection(sessionId);
+                    // 1&2. 发送完成事件并关闭 SSE 连接
+                    // 工作流调用时流程可能还有后续节点, 连接关闭由工作流引擎统一负责, 此处不能关闭
+                    if (externalHandler == null) {
+                        SseMessageUtils.sendDone(sessionId);
+                        SseMessageUtils.completeConnection(sessionId);
+                    }
 
                     // 3. 转发给外部 handler
                     if (externalHandler != null) {
@@ -850,8 +994,10 @@ public class ChatServiceFacade implements IChatService {
 
             @Override
             public void onError(Throwable error) {
-                // 发送错误事件
-                SseMessageUtils.sendError(sessionId, error.getMessage());
+                // 发送错误事件（工作流调用时由工作流引擎统一上报）
+                if (externalHandler == null) {
+                    SseMessageUtils.sendError(sessionId, error.getMessage());
+                }
                 log.error("流式响应错误: {}", error.getMessage(), error);
 
                 // 转发给外部 handler

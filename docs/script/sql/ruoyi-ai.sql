@@ -2291,11 +2291,10 @@ INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`,
 INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2027193296990957569, '000000', '文生图节点响应模板', 'node.image.template', '🎨 文生图节点：结束响应 - 图片URL: ', 'Y', 103, 1, '2026-02-27 09:25:20', 1, '2026-02-27 09:31:52', NULL);
 INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2027193820393959425, '000000', '发送邮箱节点响应模板', 'node.mailsend.template', '📧 发送邮箱节点：结束响应 - ', 'Y', 103, 1, '2026-02-27 09:27:25', 1, '2026-02-27 09:32:05', NULL);
 INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2027194134438277122, '000000', '结束节点响应模板', 'node.end.template', '🔚 流程已执行完毕，如果您有其他需求，请随时重新发起请求。', 'Y', 103, 1, '2026-02-27 09:28:40', 1, '2026-02-27 09:32:53', NULL);
-INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2027206492573335554, '000000', '人机交互节点响应模板', 'node.humanFeedback.template', '👤 人机交互节点：等待用户操作 - ', 'Y', 103, 1, '2026-02-27 10:17:46', 1, '2026-02-27 10:17:46', NULL);
 INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2027208880369647617, '000000', '条件分支节点响应模板', 'node.switch.template', '🔀 条件分支节点：触发 -> 跳转到节点 ', 'Y', 103, 1, '2026-02-27 10:27:15', 1, '2026-02-27 10:35:54', NULL);
 INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2027213914603995137, '000000', '大模型回答节点响应模板', 'node.llmAnswer.template', '🤖 LLM 节点 生成回答：', 'Y', 103, 1, '2026-02-27 10:47:16', 1, '2026-02-27 10:52:40', NULL);
-INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2027214387000066050, '000000', '关键词提取响应模板', 'node.keywordExtractor.template', '🔑 关键词提取节点 处理完成 ： ', 'Y', 103, 1, '2026-02-27 10:49:08', 1, '2026-02-27 10:52:08', NULL);
 INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2027217577397391361, '000000', '工作流异常响应模板', 'node.exception.template', '🛑 工作流发生异常：', 'N', 103, 1, '2026-02-27 11:01:49', 1, '2026-02-27 11:02:01', NULL);
+INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`) VALUES (2084157200000000003, '000000', '网络搜索节点响应模板', 'node.googleSearch.template', '🔍 网络搜索节点处理完成：', 'Y', 103, 1, '2026-07-29 19:40:00', 1, '2026-07-29 19:40:00', NULL);
 
 -- ----------------------------
 -- Table structure for sys_dept
@@ -3417,7 +3416,7 @@ CREATE TABLE `t_workflow_component`  (
                                          `tenant_id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '000000' COMMENT '租户编号',
                                          PRIMARY KEY (`id`) USING BTREE,
                                          INDEX `idx_display_order`(`display_order` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 37 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '工作流组件库 | Workflow Component' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 38 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '工作流组件库 | Workflow Component' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of t_workflow_component
@@ -3425,9 +3424,8 @@ CREATE TABLE `t_workflow_component`  (
 INSERT INTO `t_workflow_component` VALUES (17, '5cd68dccbbb411f0bb7840c2ba9a7fbc', 'Start', '开始', '流程由此开始', 0, 1, '2025-11-07 16:32:49', '2025-11-07 16:32:49', 0, '000000');
 INSERT INTO `t_workflow_component` VALUES (18, '5cd6ac69bbb411f0bb7840c2ba9a7fbc', 'End', '结束', '流程由此结束', 0, 1, '2025-11-07 16:32:49', '2025-11-07 16:32:49', 0, '000000');
 INSERT INTO `t_workflow_component` VALUES (19, '5cd6c8eabbb411f0bb7840c2ba9a7fbc', 'Answer', '生成回答', '调用大语言模型回答问题', 0, 1, '2025-11-07 16:32:49', '2025-11-07 16:32:49', 0, '000000');
-INSERT INTO `t_workflow_component` VALUES (25, '0b4369bb60dc46d6bd84ceb4e36184dc', 'KeywordExtractor', '关键词提取', '从文本中提取关键词', 0, 1, '2025-12-26 16:30:05', '2025-12-26 16:30:05', 0, '000000');
 INSERT INTO `t_workflow_component` VALUES (26, 'bb00fc2f52c74fec82ee3f99725b56bb', 'Switcher', '条件分支', '根据条件执行不同分支', 0, 1, '2025-12-26 16:30:46', '2025-12-26 16:30:46', 0, '000000');
-INSERT INTO `t_workflow_component` VALUES (36, 'f37dbcb8f0d5464d90fbb22774490a56', 'HumanFeedback', '人类', '人机沟通', 0, 1, '2025-12-30 17:37:14', '2025-12-30 17:37:14', 0, '000000');
+INSERT INTO `t_workflow_component` VALUES (37, 'a7f8c2d44e5b4c83a9d6f103c2b47e18', 'Google', '网络搜索', '调用智谱 Web Search 检索互联网信息', 40, 1, '2026-07-29 20:30:00', '2026-07-29 20:30:00', 0, '000000');
 
 -- ----------------------------
 -- Table structure for t_workflow_edge

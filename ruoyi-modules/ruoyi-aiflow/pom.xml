@@ -24,6 +24,13 @@
 
     <dependencies>
 
+        <!-- 智谱官方 Java SDK：流程编排 Web Search 扩展节点 -->
+        <dependency>
+            <groupId>ai.z.openapi</groupId>
+            <artifactId>zai-sdk</artifactId>
+            <version>0.3.5</version>
+        </dependency>
+
         <dependency>
             <groupId>org.ruoyi</groupId>
             <artifactId>ruoyi-common-chat</artifactId>
@@ -43,6 +50,11 @@
         <dependency>
             <groupId>org.ruoyi</groupId>
             <artifactId>ruoyi-common-satoken</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ruoyi</groupId>
+            <artifactId>ruoyi-common-tenant</artifactId>
         </dependency>
 
         <dependency>

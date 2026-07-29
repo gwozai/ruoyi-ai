@@ -1,7 +1,6 @@
 package org.ruoyi.workflow.workflow.node.switcher;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -9,6 +8,7 @@ import org.ruoyi.common.core.utils.SpringUtils;
 import org.ruoyi.workflow.entity.WorkflowComponent;
 import org.ruoyi.workflow.entity.WorkflowNode;
 import org.ruoyi.workflow.service.WorkflowNodeService;
+import org.ruoyi.workflow.util.JsonUtil;
 import org.ruoyi.workflow.workflow.NodeProcessResult;
 import org.ruoyi.workflow.workflow.WfNodeState;
 import org.ruoyi.workflow.workflow.WfState;
@@ -18,8 +18,6 @@ import org.ruoyi.workflow.workflow.node.enmus.NodeMessageTemplateEnum;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 /**
  * 条件分支节点
@@ -339,9 +337,12 @@ public class SwitcherNode extends AbstractWfNode {
             log.info("节点 '{}' 的输入配置: {}", nodeUuid, inputConfig);
             if (StringUtils.isNotBlank(inputConfig)){
                 try {
-                    // 使用Jackson解析输入配置
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    JsonNode configJson = objectMapper.readTree(inputConfig);
+                    // 使用统一的 JsonUtil 而不是每次创建新的 ObjectMapper
+                    JsonNode configJson = JsonUtil.toJsonNode(inputConfig);
+                    if (configJson == null) {
+                        log.warn("节点 '{}' 的输入配置 JSON 解析结果为 null", nodeUuid);
+                        return result;
+                    }
                     // 获取 user_inputs 数组
                     JsonNode userInputs = configJson.get("user_inputs");
                     if (userInputs != null && userInputs.isArray()) {
@@ -357,7 +358,8 @@ public class SwitcherNode extends AbstractWfNode {
                         }
                     }
                 } catch (Exception e) {
-                    log.error("解析节点输入配置失败: {}", nodeUuid, e);
+                    log.error("解析节点 '{}' 输入配置失败，参数名: {}, 配置内容: {}", nodeUuid, paramName, inputConfig, e);
+                    // 不抛出异常，返回默认结果，避免中断整个流程
                 }
             }
         }

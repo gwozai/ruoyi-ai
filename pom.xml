@@ -342,10 +342,18 @@
             </dependency>
 
             <!-- JustAuth 的依赖配置-->
+            <!-- 排除 fastjson(存在 RCE 漏洞且已停止维护), 项目内自定义的登录类(钉钉/企业微信/gitea/maxkey/topiam)已改用 Jackson -->
+            <!-- 注意: JustAuth 内置平台类(github/gitee/qq 等)内部仍使用 fastjson, 排除后如需使用这些平台请自行覆写对应请求类 -->
             <dependency>
                 <groupId>me.zhyd.oauth</groupId>
                 <artifactId>JustAuth</artifactId>
                 <version>${justauth.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.alibaba</groupId>
+                        <artifactId>fastjson</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <!-- 离线IP地址定位库 ip2region -->
@@ -354,9 +362,6 @@
                 <artifactId>ip2region</artifactId>
                 <version>${ip2region.version}</version>
             </dependency>
-
-            <!-- FastJson已完全移除，项目统一使用Jackson -->
-            <!-- Jackson相关依赖已由Spring Boot统一管理 -->
 
             <dependency>
                 <groupId>org.ruoyi</groupId>

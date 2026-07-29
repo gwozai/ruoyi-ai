@@ -15,9 +15,6 @@ import me.zhyd.oauth.utils.HttpUtils;
 import me.zhyd.oauth.utils.StringUtils;
 import me.zhyd.oauth.utils.UrlBuilder;
 
-// 临时保留FastJson用于JustAuth库兼容
-import com.alibaba.fastjson.JSON;
-
 /**
  * <p>
  * 企业微信登录父类
@@ -64,11 +61,8 @@ public abstract class AbstractAuthWeChatEnterpriseRequest extends AuthDefaultReq
         String userTicket = object.has("user_ticket") ? object.get("user_ticket").asText() : null;
         JsonNode userDetail = getUserDetail(authToken.getAccessToken(), userId, userTicket);
 
-        // 将JsonNode转换为JSONObject以兼容JustAuth库
-        com.alibaba.fastjson.JSONObject rawUserInfo = com.alibaba.fastjson.JSON.parseObject(userDetail.toString());
-
+        // rawUserInfo 为 JustAuth 的 fastjson 类型字段, 项目内无消费方, 不再设置
         return AuthUser.builder()
-            .rawUserInfo(rawUserInfo)
             .username(userDetail.has("name") ? userDetail.get("name").asText() : null)
             .nickname(userDetail.has("alias") ? userDetail.get("alias").asText() : null)
             .avatar(userDetail.has("avatar") ? userDetail.get("avatar").asText() : null)

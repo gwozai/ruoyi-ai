@@ -19,9 +19,6 @@ import me.zhyd.oauth.utils.UrlBuilder;
 import java.util.HashMap;
 import java.util.Map;
 
-// 临时保留FastJson用于JustAuth库兼容
-import com.alibaba.fastjson.JSON;
-
 /**
  * 新版钉钉二维码登录
  *
@@ -92,13 +89,10 @@ public class AuthDingTalkV2Request extends AuthDefaultRequest {
             String response = new HttpUtils(config.getHttpConfig()).get(this.source.userInfo(), null, header, false).getBody();
             JsonNode object = objectMapper.readTree(response);
 
-            // 将JsonNode转换为JSONObject以兼容JustAuth库
-            com.alibaba.fastjson.JSONObject rawUserInfo = com.alibaba.fastjson.JSON.parseObject(object.toString());
-
             authToken.setOpenId(object.has("openId") ? object.get("openId").asText() : null);
             authToken.setUnionId(object.has("unionId") ? object.get("unionId").asText() : null);
+            // rawUserInfo 为 JustAuth 的 fastjson 类型字段, 项目内无消费方, 不再设置
             return AuthUser.builder()
-                .rawUserInfo(rawUserInfo)
                 .uuid(object.has("unionId") ? object.get("unionId").asText() : null)
                 .username(object.has("nick") ? object.get("nick").asText() : null)
                 .nickname(object.has("nick") ? object.get("nick").asText() : null)

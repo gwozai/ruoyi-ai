@@ -332,6 +332,16 @@ vector-store:
     api-key:
     use-tls: false
 
+# 流程编排扩展节点
+workflow:
+  web-search:
+    zhipu:
+      # 推荐通过环境变量注入；为空时回退到模型管理中的 zhipu 厂商密钥
+      api-key: ${ZAI_API_KEY:}
+      base-url: ${ZHIPU_WEB_SEARCH_BASE_URL:https://open.bigmodel.cn/api/paas/v4/}
+      connect-timeout: ${ZHIPU_WEB_SEARCH_CONNECT_TIMEOUT:10}
+      read-timeout: ${ZHIPU_WEB_SEARCH_READ_TIMEOUT:30}
+
 # 短剧成片合成
 short-drama:
   composition:

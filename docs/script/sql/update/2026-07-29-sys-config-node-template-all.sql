@@ -1,8 +1,10 @@
--- 补充工作流节点消息模板配置 (对应 issue IJX5VV)
--- 背景：NodeMessageTemplateEnum 依赖以下 7 个 sys_config 键，缺失时
---       WorkflowMessageUtil.getNodeMessageTemplate 会抛出「请先配置该节点的响应模板」。
--- 这批配置在历史提交 20d531c0 中存在，SQL 脚本合并重命名时遗失，此处恢复。
--- 幂等：按 config_key + tenant_id 判重，可重复执行。
+-- 一次性补全工作流节点消息模板配置 (NodeMessageTemplateEnum 全部 8 个键)
+-- 背景：节点执行时 WorkflowMessageUtil.getNodeMessageTemplate 从 sys_config 读取展示模板,
+--       历史库中这批配置缺失, 导致运行工作流抛「请先配置该节点的响应模板」。
+--       其中前 7 个见 2026-07-21-sys-config-node-template.sql,
+--       Google Search 为此前从未入库的节点模板。
+-- 说明：代码已增加内置默认模板兜底, 本脚本为可选, 执行后模板可在 系统管理-配置管理 中自定义。
+-- 幂等：按 config_key + tenant_id 判重, 可重复执行。
 
 INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
 SELECT 2027192921483309058, '000000', 'HTTP请求节点响应模板', 'node.httpRequest.template', '✅ HTTP请求节点：结束响应 - ', 'Y', 103, 1, '2026-02-27 09:23:51', 1, '2026-02-27 09:31:41', NULL
@@ -31,3 +33,7 @@ FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_config` WHERE `config_key` = 'nod
 INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
 SELECT 2027217577397391361, '000000', '工作流异常响应模板', 'node.exception.template', '🛑 工作流发生异常：', 'N', 103, 1, '2026-02-27 11:01:49', 1, '2026-02-27 11:02:01', NULL
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_config` WHERE `config_key` = 'node.exception.template' AND `tenant_id` = '000000');
+
+INSERT INTO `sys_config` (`config_id`, `tenant_id`, `config_name`, `config_key`, `config_value`, `config_type`, `create_dept`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+SELECT 2084157200000000003, '000000', '网络搜索节点响应模板', 'node.googleSearch.template', '🔍 网络搜索节点处理完成：', 'Y', 103, 1, '2026-07-29 19:40:00', 1, '2026-07-29 19:40:00', NULL
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_config` WHERE `config_key` = 'node.googleSearch.template' AND `tenant_id` = '000000');
