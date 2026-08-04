@@ -1,4 +1,4 @@
-package org.ruoyi.trace;
+package org.ruoyi.argtrace;
 
 /**
  * RAG trace 业务与节点类型常量。

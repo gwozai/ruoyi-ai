@@ -23,7 +23,13 @@
 </div>
 
 
+## 🚀 Live Demo
 
+| Service | URL | Default Account |
+|---|---|---|
+| Admin Panel | http://129.226.199.247:25666 | admin / admin123 |
+| User Frontend | http://129.226.199.247:25137 | admin / admin123 |
+| Commercial Edition | https://web.ruoyiai.chat | WeChat QR code login |
 
 ## ✨ Core Features
 

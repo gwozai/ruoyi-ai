@@ -1,4 +1,4 @@
-package org.ruoyi.trace;
+package org.ruoyi.argtrace;
 
 import org.ruoyi.common.chat.domain.dto.request.ChatRequest;
 import org.ruoyi.common.chat.domain.vo.chat.ChatModelVo;

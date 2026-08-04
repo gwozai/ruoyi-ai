@@ -80,8 +80,8 @@ import org.ruoyi.service.chat.impl.memory.PersistentChatMemoryStore;
 import org.ruoyi.service.knowledge.IKnowledgeInfoService;
 import org.ruoyi.service.retrieval.KnowledgeRetrievalService;
 import org.ruoyi.service.knowledge.retriever.CustomVectorRetriever;
-import org.ruoyi.trace.RagTraceNodeTypes;
-import org.ruoyi.trace.RagTracePayloadBuilder;
+import org.ruoyi.argtrace.RagTraceNodeTypes;
+import org.ruoyi.argtrace.RagTracePayloadBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -348,7 +348,7 @@ public class ChatServiceFacade implements IChatService {
             .subAgents(skillsAgent, searchAgent, sqlAgent, chartGenerationAgent, echartsAgent, chitChatAgent)
             .supervisorContext("仅当请求是问候或简单闲聊、不需要任何数据、搜索、技能或图表时,才使用 chitChatAgent;"
                 + "其余情况必须使用对应的专业 Agent")
-            .responseStrategy(SupervisorResponseStrategy.SUMMARY);
+            .responseStrategy(SupervisorResponseStrategy.LAST);
         SupervisorAgent supervisor = supervisorBuilder.build();
 
         // 知识库增强：智能体绑定了知识库时，对 supervisor 输入做一次 RAG 增强（全程唯一一次检索）
