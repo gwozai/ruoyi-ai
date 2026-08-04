@@ -159,36 +159,6 @@ docker-compose up -d --build
 | MinIO API | 29000 | 9000 | 对象存储 API |
 | MinIO Console | 29090 | 9090 | 对象存储控制台 |
 
-### 镜像仓库
-
-每次推送类似 `v3.1.0` 的版本标签后，GitHub Actions 会自动构建并发布应用镜像到 GitHub Container Registry（GHCR）：
-
-```
-ghcr.io/ageerle/ruoyi-ai-backend:v3.1.0
-ghcr.io/ageerle/ruoyi-ai-mysql:v3.1.0
-ghcr.io/ageerle/ruoyi-ai-admin:v3.1.0
-ghcr.io/ageerle/ruoyi-ai-web:v3.1.0
-```
-
-Compose 默认使用 `latest`。如需固定版本，可在 `docs/docker/ruoyi-ai/.env` 中设置 `RUIYI_VERSION=v3.1.0`。
-
-首次工作流运行完成后，请在 GitHub 的 Packages 设置中将这四个 GHCR 镜像设为 `Public`，用户服务器才能免登录拉取。
-
-管理端 `ageerle/ruoyi-admin` 和用户端 `ageerle/ruoyi-web` 也必须存在同名版本标签；发布工作流会使用后端发布标签检出这两个仓库后再构建镜像。
-
-### 常用命令
-
-```bash
-# 停止所有服务
-docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml down
-
-# 查看服务日志
-docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml logs -f [服务名]
-
-# 重启某个服务
-docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml restart [服务名]
-```
-
 ## 📚 使用文档
 
 想要深入了解安装部署、功能配置和二次开发？

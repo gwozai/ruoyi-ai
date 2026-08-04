@@ -163,36 +163,6 @@ docker-compose up -d --build
 | MinIO API | 29000 | 9000 | Object storage API |
 | MinIO Console | 29090 | 9090 | Object storage console |
 
-### Image Registry
-
-Application images are published to GitHub Container Registry (GHCR) by GitHub Actions when a release tag such as `v3.1.0` is pushed:
-
-```
-ghcr.io/ageerle/ruoyi-ai-backend:v3.1.0
-ghcr.io/ageerle/ruoyi-ai-mysql:v3.1.0
-ghcr.io/ageerle/ruoyi-ai-admin:v3.1.0
-ghcr.io/ageerle/ruoyi-ai-web:v3.1.0
-```
-
-The Compose file defaults to `latest`. To pin a release, create `docs/docker/ruoyi-ai/.env` with `RUIYI_VERSION=v3.1.0`.
-
-After the first workflow run, set the four GHCR packages to `Public` in GitHub so deployment servers can pull them without logging in.
-
-The same release tag must exist in `ageerle/ruoyi-admin` and `ageerle/ruoyi-web`; the publish workflow checks out those repositories at the backend release tag before building their images.
-
-### Common Commands
-
-```bash
-# Stop all services
-docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml down
-
-# View service logs
-docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml logs -f [service-name]
-
-# Restart a service
-docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml restart [service-name]
-```
-
 ## 📚 Documentation
 
 Want to learn more about installation, deployment, configuration, and secondary development?
