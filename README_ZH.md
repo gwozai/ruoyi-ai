@@ -235,9 +235,9 @@ docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml restart [服务�
 <em>邀请进群学习</em>
 </td>
 <td align="center">
-<img src="docs/image/wx06.png" alt="微信二维码" width="200" height="200"><br>
-<strong>微信技术交流群</strong><br>
-<em>技术讨论</em>
+<img src="docs/image/douyin.png" alt="抖音二维码" width="200" height="200"><br>
+<strong>抖音视频教程</strong><br>
+<em>打开抖音扫一扫，关注查看视频教程</em>
 </td>
 <td align="center">
 <img src="docs/image/qq.png" alt="QQ群二维码" width="200" height="200"><br>

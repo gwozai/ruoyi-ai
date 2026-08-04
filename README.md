@@ -234,9 +234,9 @@ Enjoy ByteDance's in-house Doubao models plus full-power open-source SOTA models
 <em>Join group for learning</em>
 </td>
 <td align="center">
-<img src="docs/image/wx06.png" alt="WeChat QR Code" width="200" height="200"><br>
-<strong>WeChat Tech Exchange Group</strong><br>
-<em>Technical discussion</em>
+<img src="docs/image/douyin.png" alt="Douyin QR Code" width="200" height="200"><br>
+<strong>Douyin Video Tutorials</strong><br>
+<em>Open Douyin, scan & follow to watch video tutorials</em>
 </td>
 <td align="center">
 <img src="docs/image/qq.png" alt="QQ Group QR Code" width="200" height="200"><br>
