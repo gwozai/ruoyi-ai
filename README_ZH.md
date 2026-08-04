@@ -70,21 +70,38 @@
 使用 `docker-compose-all.yaml` 可以一键启动所有服务（包括后端、管理端、用户端及依赖服务）：
 
 ```bash
-# 克隆仓库
-git clone https://github.com/ageerle/ruoyi-ai.git
+# 环境要求：Docker Engine 和 Docker Compose V2
+
+# 克隆 v3.1.0 版本
+git clone --depth 1 --branch v3.1.0 https://github.com/ageerle/ruoyi-ai.git
 cd ruoyi-ai
 
-# 启动所有服务（从 GHCR 拉取预构建镜像）
-docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml up -d
+# 固定镜像版本。GHCR 镜像已公开，无需 docker login
+cp docs/docker/ruoyi-ai/.env.example docs/docker/ruoyi-ai/.env
+sed -i 's/^RUIYI_VERSION=.*/RUIYI_VERSION=v3.1.0/' docs/docker/ruoyi-ai/.env
+
+# 从 GHCR 拉取预构建镜像并启动全部服务
+docker compose --env-file docs/docker/ruoyi-ai/.env \
+  -f docs/docker/ruoyi-ai/docker-compose-all.yaml pull
+docker compose --env-file docs/docker/ruoyi-ai/.env \
+  -f docs/docker/ruoyi-ai/docker-compose-all.yaml up -d
 
 # 查看服务状态
-docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml ps
+docker compose --env-file docs/docker/ruoyi-ai/.env \
+  -f docs/docker/ruoyi-ai/docker-compose-all.yaml ps
 
-# 访问服务
-# 管理端: http://localhost:25666 (admin / admin123)
-# 用户端: http://localhost:25137
-# 后端API: http://localhost:26039
+# 访问服务（将 SERVER_IP 替换为服务器地址）
+# 管理端: http://SERVER_IP:25666 (admin / admin123)
+# 用户端: http://SERVER_IP:25137
+# 后端API: http://SERVER_IP:26039
 ```
+
+默认 Compose 还会发布 MySQL（`23306`）、Redis（`26379`）、Weaviate（`28080`）和
+MinIO（`29000`/`29090`）端口。生产环境请修改 MySQL 和 MinIO 默认密码，并通过防火墙或反向代理只开放应用端口。
+
+升级到其他已发布版本时，修改 `docs/docker/ruoyi-ai/.env` 中的 `RUIYI_VERSION`，然后使用相同的
+`--env-file` 和 `-f` 参数执行 `docker compose pull`、`docker compose up -d`。除非确定要删除持久化数据卷，
+不要执行 `docker compose down -v`。
 
 ### 方式二：分步部署（源码编译）
 
