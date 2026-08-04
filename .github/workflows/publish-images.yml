@@ -4,15 +4,21 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to rebuild
+        required: true
+        type: string
 
 concurrency:
-  group: publish-images-${{ github.ref_name }}
+  group: publish-images-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_OWNER: ${{ github.repository_owner }}
-  RELEASE_TAG: ${{ github.ref_name }}
+  RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
 
 jobs:
   publish:
@@ -69,6 +75,26 @@ jobs:
           ref: ${{ env.RELEASE_TAG }}
           path: build/ruoyi-web
           fetch-depth: 1
+
+      - name: Configure frontend dependency builds
+        if: matrix.source == 'admin' || matrix.source == 'web'
+        shell: bash
+        run: |
+          python3 - "${{ matrix.dockerfile }}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          dockerfile = Path(sys.argv[1])
+          content = dockerfile.read_text()
+          marker = "pnpm install --frozen-lockfile"
+          replacement = (
+              "pnpm install --frozen-lockfile "
+              "--config.dangerously-allow-all-builds=true"
+          )
+          if marker not in content:
+              raise SystemExit(f"pnpm install command not found in {dockerfile}")
+          dockerfile.write_text(content.replace(marker, replacement, 1))
+          PY
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
