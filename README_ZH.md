@@ -74,11 +74,11 @@
 git clone https://github.com/ageerle/ruoyi-ai.git
 cd ruoyi-ai
 
-# 启动所有服务（从镜像仓库拉取预构建镜像）
-docker-compose -f docker-compose-all.yaml up -d
+# 启动所有服务（从 GHCR 拉取预构建镜像）
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml up -d
 
 # 查看服务状态
-docker-compose -f docker-compose-all.yaml ps
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml ps
 
 # 访问服务
 # 管理端: http://localhost:25666 (admin / admin123)
@@ -144,32 +144,32 @@ docker-compose up -d --build
 
 ### 镜像仓库
 
-所有镜像托管在阿里云容器镜像服务：
+每次推送类似 `v3.1.0` 的版本标签后，GitHub Actions 会自动构建并发布应用镜像到 GitHub Container Registry（GHCR）：
 
 ```
-crpi-31mraxd99y2gqdgr.cn-beijing.personal.cr.aliyuncs.com/ruoyi_ai
+ghcr.io/ageerle/ruoyi-ai-backend:v3.1.0
+ghcr.io/ageerle/ruoyi-ai-mysql:v3.1.0
+ghcr.io/ageerle/ruoyi-ai-admin:v3.1.0
+ghcr.io/ageerle/ruoyi-ai-web:v3.1.0
 ```
 
-可用镜像：
-- `mysql:v3` - MySQL 数据库（包含初始化 SQL）
-- `redis:6.2` - Redis 缓存
-- `weaviate:1.30.0` - 向量数据库
-- `minio:latest` - 对象存储
-- `ruoyi-ai-backend:latest` - 后端服务
-- `ruoyi-ai-admin:latest` - 管理端前端
-- `ruoyi-ai-web:latest` - 用户端前端
+Compose 默认使用 `latest`。如需固定版本，可在 `docs/docker/ruoyi-ai/.env` 中设置 `RUIYI_VERSION=v3.1.0`。
+
+首次工作流运行完成后，请在 GitHub 的 Packages 设置中将这四个 GHCR 镜像设为 `Public`，用户服务器才能免登录拉取。
+
+管理端 `ageerle/ruoyi-admin` 和用户端 `ageerle/ruoyi-web` 也必须存在同名版本标签；发布工作流会使用后端发布标签检出这两个仓库后再构建镜像。
 
 ### 常用命令
 
 ```bash
 # 停止所有服务
-docker-compose -f docker-compose-all.yaml down
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml down
 
 # 查看服务日志
-docker-compose -f docker-compose-all.yaml logs -f [服务名]
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml logs -f [服务名]
 
 # 重启某个服务
-docker-compose -f docker-compose-all.yaml restart [服务名]
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml restart [服务名]
 ```
 
 ## 📚 使用文档

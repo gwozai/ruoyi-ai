@@ -75,11 +75,11 @@ Use `docker-compose-all.yaml` to start all services at once (including backend, 
 git clone https://github.com/ageerle/ruoyi-ai.git
 cd ruoyi-ai
 
-# Start all services (pull pre-built images from registry)
-docker-compose -f docker-compose-all.yaml up -d
+# Start all services (pull pre-built images from GHCR)
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml up -d
 
 # Check service status
-docker-compose -f docker-compose-all.yaml ps
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml ps
 
 # Access services
 # Admin Panel: http://localhost:25666 (admin / admin123)
@@ -145,32 +145,32 @@ docker-compose up -d --build
 
 ### Image Registry
 
-All images are hosted on Alibaba Cloud Container Registry:
+Application images are published to GitHub Container Registry (GHCR) by GitHub Actions when a release tag such as `v3.1.0` is pushed:
 
 ```
-crpi-31mraxd99y2gqdgr.cn-beijing.personal.cr.aliyuncs.com/ruoyi_ai
+ghcr.io/ageerle/ruoyi-ai-backend:v3.1.0
+ghcr.io/ageerle/ruoyi-ai-mysql:v3.1.0
+ghcr.io/ageerle/ruoyi-ai-admin:v3.1.0
+ghcr.io/ageerle/ruoyi-ai-web:v3.1.0
 ```
 
-Available images:
-- `mysql:v3` - MySQL database (includes initialization SQL)
-- `redis:6.2` - Redis cache
-- `weaviate:1.30.0` - Vector database
-- `minio:latest` - Object storage
-- `ruoyi-ai-backend:latest` - Backend service
-- `ruoyi-ai-admin:latest` - Admin frontend
-- `ruoyi-ai-web:latest` - User frontend
+The Compose file defaults to `latest`. To pin a release, create `docs/docker/ruoyi-ai/.env` with `RUIYI_VERSION=v3.1.0`.
+
+After the first workflow run, set the four GHCR packages to `Public` in GitHub so deployment servers can pull them without logging in.
+
+The same release tag must exist in `ageerle/ruoyi-admin` and `ageerle/ruoyi-web`; the publish workflow checks out those repositories at the backend release tag before building their images.
 
 ### Common Commands
 
 ```bash
 # Stop all services
-docker-compose -f docker-compose-all.yaml down
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml down
 
 # View service logs
-docker-compose -f docker-compose-all.yaml logs -f [service-name]
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml logs -f [service-name]
 
 # Restart a service
-docker-compose -f docker-compose-all.yaml restart [service-name]
+docker compose -f docs/docker/ruoyi-ai/docker-compose-all.yaml restart [service-name]
 ```
 
 ## 📚 Documentation
